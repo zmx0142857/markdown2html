@@ -98,9 +98,8 @@ var Markdown2HTML = {};
 		}
 
 		function match_blocks() {
-			do {
+			while (i < tokens.length)
 				match_block();
-			} while (i < tokens.length && tokens[i++].type == LF);
 		}
 
 		function match_block() {
@@ -116,9 +115,9 @@ var Markdown2HTML = {};
 				insertText();
 				elem = elem.parentElement;
 			}
-			if (i < tokens.length && tokens[i].type != LF) {
-				console.error(i + ': expecting lf, got ' + tokens[i].type);
-			}
+			if (i < tokens.length && tokens[i].type != LF)
+				console.warn('no eol (but got ' + tokens[i].type + ')');
+			++i;
 		}
 
 		function match_headings() {
@@ -207,7 +206,7 @@ var Markdown2HTML = {};
 			elem = elem.parentElement;
 		}
 
-		function match_bold(type) {
+		function match_bold(type, othertype) {
 			++i;
 			insertText();
 			insertNode('b');
@@ -260,6 +259,7 @@ var Markdown2HTML = {};
 	}
 
 	function run(files) {
+		document.getElementById('container').innerHTML = '';
 		read(files);
 	}
 
