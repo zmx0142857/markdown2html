@@ -2,7 +2,7 @@ var Markdown2HTML = {};
 
 (function() {
 	// token type
-	var LF = '\n', HARSH = '#', UNDERSCORE = '_', ASTERISK = '*', BACKQUOTE = '`', LPAREN = '(', RPAREN = ')', LBRACK = '[', RBRACK = ']', LBRACE = '{', RBRACE = '}', TEXT = 'text';
+	var LF = '\n', CODE = '`', CODEBLOCK = '```', LINK = 'link', ITALIC = '*', BOLD = '**', ITALICBOLD = '***', BULLET = '* item', CROSSOUT = '~~', HEADING = '#', TITLE = '====', SUBTITLE = '----', TEXT = 'text';
 
 	function read(files) {
 		if (files.length) {
@@ -11,8 +11,8 @@ var Markdown2HTML = {};
 			if (/text+/.test(file.type)) { // 判断是否为 text 类型
 				reader.readAsText(file);
 				reader.onload = function() {
-					//console.log(this.result);
-					lexer(this.result);
+					console.log(this.result);
+					lexer('\n' + this.result);
 				}
 			}
 		}
@@ -21,41 +21,137 @@ var Markdown2HTML = {};
 	function lexer(str) {
 		var tokens = [];
 		var i = 0;
+		var text = '';
+		var level = 0;
+		function isSpace(ch) {
+			return ch == ' ' || ch == '\t';
+		}
+
+		function ignoreSpace() {
+			// ignore space, get undefined if i == str.length
+			while (isSpace(str[i])) ++i;
+		}
+
+		function repeat(ch, limit) {
+			level = 0;
+			do {
+				++i; ++level;
+			} while (!(level > limit) && str[i] == ch);
+		}
+
 		while (i < str.length) {
-			function ignoreSpace() {
-				// ignore space, get undefined if i == str.length
-				while (str[i] == ' ' || str[i] == '\t')
-					++i;
-			}
-
-			function getLevel(ch) {
-				do {
-					++i;
-					++level;
-				} while (str[i] == ch);
-				return level;
-			}
-
-			var level = 0;
-			var text = '';
 			switch (str[i]) {
-				case '\n': tokens.push({type:LF}); ++i; ignoreSpace();
+				case '\n': ++i;
+					if (str[i] == '=') {
+						repeat('=');
+						if (level >= 4)
+							tokens.push({type:TITLE});
+						else
+							text += str.substr(i-level,level);
+					} else if (str[i] == '-') {
+						repeat('-');
+						if (level >= 4)
+							tokens.push({type:SUBTITLE});
+						else
+							text += str.substr(i-level,level);
+					} else {
+						tokens.push({type:LF});
+						if (str[i] == '#') {
+							repeat('#', 6);
+							ignoreSpace();
+							var begin = i;
+							i = str.indexOf('\n', begin);
+							if (i != -1) {
+								tokens.push({type:HEADING, level:level,
+									text:str.substring(begin, i)});
+							} else {
+								token.push({type:HEADING, level:level,
+									text:str.substr(begin)});
+								i = str.length;
+							}
+						} else if (str[i] == '*' && isSpace(str[i+1])) {
+							++i;
+							ignoreSpace();
+							tokens.push({type:BULLET});
+						} else if (str.substr(i, 3) == '```') {
+							i += 3;
+							var begin = i;
+							i = str.indexOf('```', begin);
+							if (i != -1) {
+								tokens.push({type:CODEBLOCK,
+										text:str.substring(begin, i)});
+								i += 3;
+							} else {
+								tokens.push({type:CODEBLOCK,
+									text:str.substr(begin)});
+								i = str.length;
+							}
+						}
+					}
 					break;
-				case '`': tokens.push({type:BACKQUOTE}); ++i; break;
-				case '(': tokens.push({type:LPAREN}); ++i; break;
-				case ')': tokens.push({type:RPAREN}); ++i; break;
-				case '[': tokens.push({type:LBRACK}); ++i; break;
-				case ']': tokens.push({type:RBRACK}); ++i; break;
-				//case '{': tokens.push({type:LBRACE}); ++i; break;
-				//case '}': tokens.push({type:RBRACE}); ++i; break;
-				case '*': tokens.push({type:ASTERISK, level:getLevel('*')}); break;
-				case '_': tokens.push({type:UNDERSCORE, level:getLevel('_')}); break;
-				case '#': level = getLevel('#'); tokens.push({type: HARSH, level:level > 6 ? 6 : level}); break;
+				case '`': ++i;  tokens.push({type:CODE});	break;
+				case '[':
+					var begin = ++i;
+					i = str.indexOf(']', begin);
+					if (i != -1) { // matched [ ]
+						var text = str.substr(begin, i);
+						begin = ++i;
+						i = str.indexOf('(', begin);
+						if (i != -1) { // matched [ ] (
+							var inner_text = str.substr(begin, i);
+							begin = ++i;
+							i = str.indexOf(')', begin);
+							if (i != -1) { // matched [ ] ( )
+								tokens.push({type:LINK, text:text,
+									src:str.substr(begin, i)});
+							} else { // matched [ ] ( eof
+								tokens.push({type:TEXT, text:
+									'[' + text + ']' + inner_text + '('});
+								i = begin;
+							}
+						} else { // matched [ ] eof
+							tokens.push({type:text, text: '[' + text + ']'});
+							i = begin;
+						}
+					} else { // matched [ eof
+						tokens.push({type:TEXT, text:'['});
+						i = begin;
+					}
+					break;
+				case '*':
+					repeat('*', 3);
+					if (level == 1)
+						tokens.push({type:ITALIC});
+					else if (level == 2)
+						tokens.push({type:BOLD});
+					else
+						tokens.push({type:ITALICBOLD});
+					break;
+				case '_':
+					repeat('_', 3);
+					if (level == 1)
+						tokens.push({type:ITALIC});
+					else if (level == 2)
+						tokens.push({type:BOLD});
+					else
+						tokens.push({type:ITALICBOLD});
+					break;
+				case '~': ++i;
+					if (str[i] == '~') {
+						++i;
+						tokens.push({type:CROSSOUT});
+					} else {
+						text += '~';
+					}
+					break;
 				default:
-					while (/\n|`|\(|\)|\[|\]|\{|\}|\*|_|#/.test(str[i]) == false) {
+					while (/\n|`|\(|\)|\[|\]|\*|_|~/
+							.test(str[i]) == false) {
 						text += str[i++];
 					}
+					ignoreSpace();
 					tokens.push({type:TEXT, text:text});
+					text = '';
 			}
 		}
 		console.log(tokens);
@@ -91,6 +187,10 @@ var Markdown2HTML = {};
 			elem = node;
 		}
 
+		function pushText() {
+			text.push(tokens[i++].text);
+		}
+
 		function insertText() {
 			node = document.createTextNode(text.join(' '));
 			elem.appendChild(node);
@@ -103,11 +203,20 @@ var Markdown2HTML = {};
 		}
 
 		function match_block() {
-			if (tokens[i].type == HARSH) {
-				match_headings();
-			} else if (tokens[i].type == ASTERISK) {
+			if (tokens[i].type == LF) {
+				++i;
+				return;
+			} else if (tokens[i].type == HEADING) {
+				insertNode('h' + tokens[i].level);
+				elem.innerHTML = tokens[i++].text;
+				elem = elem.parentElement;
+			} else if (tokens[i].type == BULLET) {
 				insertNode('ul');
 				match_items();
+				elem = elem.parentElement;
+			} else if (tokens[i].type == CODEBLOCK) {
+				insertNode('pre');
+				elem.innerHTML = tokens[i++].text;
 				elem = elem.parentElement;
 			} else {
 				insertNode('p');
@@ -123,13 +232,13 @@ var Markdown2HTML = {};
 		function match_headings() {
 			do
 				match_heading();
-			while (tokens[i].type == HARSH);
+			while (tokens[i].type == HEADING);
 		}
 
 		function match_items() {
 			do
 				match_item();
-			while (tokens[i].type == ASTERISK);
+			while (tokens[i].type == BULLET);
 		}
 
 		function match_lines() {
@@ -171,34 +280,24 @@ var Markdown2HTML = {};
 		function match_xtext() {
 			var matched = false;
 			switch (tokens[i].type) {
-				case TEXT: text.push(tokens[i++].text); break;
-				case UNDERSCORE: match_ib(UNDERSCORE, ASTERISK); break;
-				case ASTERISK: match_ib(ASTERISK, UNDERSCORE); break;
-				case BACKQUOTE: match_code(); break;
+				case TEXT: pushText(); break;
+				case ITALIC: match_italic(); break;
+				case BOLD: match_bold(); break;
+				case CODE: match_code(); break;
 				case LBRACK: match_link(); break;
-				default: text.push(tokens[i].type); ++i; break;
+				default: text.push(tokens[i++].type); break;
 			}
 		}
 
-		function match_ib(type, othertype) {
-			var level = tokens[i].level;
-			if (level == 1)
-				match_italic(type, othertype);
-			else if (level == 2)
-				match_bold(type, othertype);
-			else
-				console.error('invalid level' + level);
-		}
-
-		function match_italic(type, othertype) {
+		function match_italic() {
 			++i;
 			insertText();
 			insertNode('em');
-			while (tokens[i].type != type) {
+			while (tokens[i].type != ITALIC) {
 				switch (tokens[i].type) {
-					case TEXT: text.push(tokens[i++].text); break;
-					case othertype: match_ib(othertype, type); break;
-					default: text.push(tokens[i].type); ++i; break;
+					case TEXT: pushText(); break;
+					case BOLD: match_bold(); break;
+					default: text.push(tokens[i++].type); break;
 				}
 			}
 			++i;
@@ -206,15 +305,15 @@ var Markdown2HTML = {};
 			elem = elem.parentElement;
 		}
 
-		function match_bold(type, othertype) {
+		function match_bold() {
 			++i;
 			insertText();
 			insertNode('b');
-			while (tokens[i].type != type) {
+			while (tokens[i].type != BOLD) {
 				switch (tokens[i].type) {
-					case TEXT: text.push(tokens[i++].text); break;
-					case othertype: match_ib(othertype, type); break;
-					default: text.push(tokens[i].type); ++i; break;
+					case TEXT: pushText(); break;
+					case ITALIC: match_italic(); break;
+					default: text.push(tokens[i++].type); break;
 				}
 			}
 			++i;
@@ -225,9 +324,8 @@ var Markdown2HTML = {};
 		function match_code() {
 			++i;
 			insertNode('pre');
-			while (tokens[i].type != BACKQUOTE) {
+			while (tokens[i].type != CODE)
 				text.push(tokens[i++].type);
-			}
 			insertText();
 			elem = elem.parentElement;
 		}
@@ -237,11 +335,11 @@ var Markdown2HTML = {};
 			insertNode('a');
 			while (tokens[i].type != RBRACK) {
 				switch (tokens[i].type) {
-					case TEXT: text.push(tokens[i++].text); break;
-					case UNDERSCORE: match_ib(UNDERSCORE, ASTERISK); break;
-					case ASTERISK: match_ib(ASTERISK, UNDERSCORE); break;
-					case BACKQUOTE: match_code(); break;
-					default: text.push(tokens[i].type); ++i; break;
+					case TEXT: pushText(); break;
+					case ITALIC: match_italic(); break;
+					case BOLD: match_bold(); break;
+					case CODE: match_code(); break;
+					default: text.push(tokens[i++].type); break;
 				}
 			}
 			++i;
