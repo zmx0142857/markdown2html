@@ -9,6 +9,7 @@ function read(files) {
 	if (!files.length)
 		return;
 	var file = files[0];
+	document.title = file.name;
 	var reader = new FileReader();
 	if (/text+/.test(file.type)) { // 判断是否为 text 类型
 		reader.readAsText(file);

@@ -7,9 +7,12 @@
 	<link rel="stylesheet" type="text/css" href="style.css" />
 </head>
 <body>
-	<input type="file" onchange="Markdown2HTML.run(this.files)"/>
-	<hr />
-	<div id="container"></div>
+	<a id="loader">
+		<input type="file" onchange="Markdown2HTML.run(this.files)"/>
+		+
+	</a>
+	<div id="container">
+	</div>
 	<script src="markdown2html.js"></script>
 </body>
 </html>
