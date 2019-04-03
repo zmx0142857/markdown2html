@@ -1,0 +1,28 @@
+pre {
+	tab-size: 4;
+	-moz-tab-size: 4;
+	-o-tab-size: 4;
+}
+
+table {
+	margin: 2em auto;
+	border-top: 2px solid;
+	border-bottom: 2px solid;
+}
+
+td, th {
+	padding: 0.45em 0.75em 0.45em 0.75em;
+}
+
+th {
+	text-align: left;
+}
+
+ul.task-list {
+	list-style-type: none;	
+}
+
+ul.task-list input {
+	position: absolute;
+	left: 15px;
+}
