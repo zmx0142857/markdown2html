@@ -1,7 +1,35 @@
+body {
+	background #efe;
+	margin: 5%;
+}
+
+h1 {
+	text-align: center;
+}
+
+/*
+h1,h2,h3,h4,h5,h6 {
+	color: #484;
+}
+*/
+
+ul.task-list {
+	list-style-type: none;	
+}
+
+ul.task-list input {
+	position: absolute;
+	left: 5%;
+}
+
 pre {
 	tab-size: 4;
 	-moz-tab-size: 4;
 	-o-tab-size: 4;
+
+	padding: 8px;
+	font-size: 1.2em;
+	background: #cec;
 }
 
 table {
@@ -15,13 +43,4 @@ td, th {
 
 th {
 	text-align: left;
-}
-
-ul.task-list {
-	list-style-type: none;	
-}
-
-ul.task-list input {
-	position: absolute;
-	left: 15px;
 }
